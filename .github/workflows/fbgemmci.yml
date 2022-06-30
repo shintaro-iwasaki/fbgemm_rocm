@@ -308,6 +308,41 @@ jobs:
         python3 -c "import fbgemm_gpu"
         python3 -c "import fbgemm_gpu.split_embedding_codegen_lookup_invokers"
 
+  test_amd_gpu:
+    runs-on: rocm
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: build fbgemm_gpu and test
+      shell: bash
+      run: |
+        set -eux
+        env
+        sudo echo "Zl977127!" | tee password.txt
+        cat password.txt | docker login --username liligwu --password-stdin
+        DOCKER_IMAGE=rocm/fbgemm-private:latest_v0.1.1
+        docker pull $DOCKER_IMAGE
+        JENKINS_REPO_DIR=fbgemm-private-jenkins
+        JENKINS_REPO_DIR_BAREMETAL=$PWD/$JENKINS_REPO_DIR
+        JENKINS_REPO_DIR_DOCKER=/workspace/$JENKINS_REPO_DIR
+        git clone https://streamhsa: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@github.com/ROCmSoftwarePlatform/FBGEMM.git $JENKINS_REPO_DIR_BAREMETAL
+        DOCKER_OPTIONS="\
+        --network=host \
+        --ipc=host \
+        --shm-size 16G \
+        --group-add video \
+        --cap-add=SYS_PTRACE \
+        --security-opt seccomp=unconfined \
+        --device=/dev/kfd \
+        --device=/dev/dri \
+        -v $JENKINS_REPO_DIR_BAREMETAL:$JENKINS_REPO_DIR_DOCKER
+        "
+        docker run $DOCKER_OPTIONS $DOCKER_IMAGE /scripts/build_and_run_unit_tests.sh $JENKINS_REPO_DIR_DOCKER
+
   build_cpu_only:
     runs-on: ${{ matrix.os }}
     strategy:
